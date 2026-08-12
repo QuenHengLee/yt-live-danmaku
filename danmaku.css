@@ -1,0 +1,35 @@
+#ytdm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 75%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 40; /* 高於字幕層、低於播放器控制列 */
+}
+
+.ytdm-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  will-change: transform;
+  transform: translateX(200vw); /* 進場動畫開始前先藏在畫面外 */
+  font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", sans-serif;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #ffffff;
+  text-shadow:
+    1px 1px 2px rgba(0, 0, 0, 0.9),
+    -1px -1px 2px rgba(0, 0, 0, 0.5),
+    0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.ytdm-paid {
+  color: #ffd54f; /* Super Chat 金色 */
+}
+
+.ytdm-member {
+  color: #81e681; /* 會員訊息綠色 */
+}

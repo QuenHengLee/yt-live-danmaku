@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+    width: 260px;
+    margin: 0;
+    padding: 14px 16px;
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+    font-size: 13px;
+    background: #1f1f23;
+    color: #eee;
+  }
+  h1 {
+    font-size: 15px;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .row { margin-bottom: 12px; }
+  .row label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    color: #bbb;
+  }
+  .row label .val { color: #4fc3f7; font-weight: bold; }
+  input[type="range"] { width: 100%; accent-color: #00a1d6; }
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .switch-row span { color: #bbb; }
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #00a1d6;
+  }
+  .hint { color: #777; font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h1>YouTube 直播彈幕</h1>
+
+  <div class="switch-row">
+    <span>啟用彈幕</span>
+    <input type="checkbox" id="enabled">
+  </div>
+
+  <div class="switch-row">
+    <span>顯示留言者名稱</span>
+    <input type="checkbox" id="showAuthor">
+  </div>
+
+  <div class="row">
+    <label>字體大小 <span class="val" id="fontSizeVal"></span></label>
+    <input type="range" id="fontSize" min="14" max="48" step="1">
+  </div>
+
+  <div class="row">
+    <label>速度 <span class="val" id="speedVal"></span></label>
+    <input type="range" id="speed" min="80" max="500" step="10">
+  </div>
+
+  <div class="row">
+    <label>不透明度 <span class="val" id="opacityVal"></span></label>
+    <input type="range" id="opacity" min="20" max="100" step="5">
+  </div>
+
+  <div class="row">
+    <label>顯示範圍(畫面高度)<span class="val" id="areaVal"></span></label>
+    <input type="range" id="area" min="25" max="100" step="25">
+  </div>
+
+  <div class="hint">設定即時生效,不用重新整理頁面。</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
