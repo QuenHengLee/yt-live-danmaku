@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube 直播彈幕 (Danmaku)</title>
+<meta name="description" content="把 YouTube 直播聊天室留言變成 Bilibili 風格滾動彈幕的 Chrome 擴充功能 — 開發歷程、踩坑記錄與同類擴充功能比較">
+<style>
+  :root {
+    --bg: #101014;
+    --bg-soft: #18181f;
+    --card: #1e1e27;
+    --border: #2c2c38;
+    --text: #e8e8ee;
+    --muted: #9a9aab;
+    --accent: #00a1d6;   /* bilibili blue */
+    --accent-2: #4fc3f7;
+    --gold: #ffd54f;
+    --green: #81e681;
+    --red: #ff6b81;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", sans-serif;
+    line-height: 1.75;
+  }
+  a { color: var(--accent-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- hero ---------- */
+  header {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, #0d2436 0%, #101014 70%);
+    border-bottom: 1px solid var(--border);
+    padding: 72px 0 56px;
+    text-align: center;
+  }
+  .danmaku-demo {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .5;
+    overflow: hidden;
+  }
+  .danmaku-demo span {
+    position: absolute;
+    left: 100%;
+    white-space: nowrap;
+    font-weight: 700;
+    text-shadow: 1px 1px 2px rgba(0,0,0,.8);
+    animation: fly linear infinite;
+  }
+  @keyframes fly {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(-100vw - 100%)); }
+  }
+  header h1 { position: relative; font-size: 2.2rem; margin: 0 0 8px; }
+  header h1 .zh { color: var(--accent-2); }
+  header p.tagline { position: relative; color: var(--muted); margin: 0 0 28px; font-size: 1.05rem; }
+  .btns { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-weight: 700;
+    border: 1px solid var(--accent);
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #0090c0; text-decoration: none; }
+  .btn.ghost { color: var(--accent-2); }
+  .btn.ghost:hover { background: rgba(0,161,214,.12); text-decoration: none; }
+
+  /* ---------- sections ---------- */
+  section { padding: 48px 0 8px; }
+  h2 {
+    font-size: 1.5rem;
+    margin: 0 0 20px;
+    padding-left: 14px;
+    border-left: 5px solid var(--accent);
+  }
+  h3 { font-size: 1.1rem; margin: 28px 0 10px; color: var(--accent-2); }
+  p, li { color: #cfcfda; }
+  .muted { color: var(--muted); font-size: .9rem; }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+    padding: 0;
+    list-style: none;
+    margin: 0;
+  }
+  .features li {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .features b { color: var(--text); }
+
+  /* ---------- pitfall cards ---------- */
+  .pitfall {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 18px;
+  }
+  .pitfall h3 { margin: 0 0 10px; }
+  .pitfall .tag {
+    display: inline-block;
+    font-size: .75rem;
+    font-weight: 700;
+    padding: 1px 10px;
+    border-radius: 99px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .tag.v10 { background: rgba(0,161,214,.18); color: var(--accent-2); }
+  .tag.v11 { background: rgba(255,213,79,.15); color: var(--gold); }
+  .pitfall dt { font-weight: 700; margin-top: 10px; }
+  .pitfall dt.problem { color: var(--red); }
+  .pitfall dt.fix { color: var(--green); }
+  .pitfall dd { margin: 4px 0 0 0; }
+  code {
+    background: #14141b;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: .88em;
+    color: var(--gold);
+    font-family: Consolas, "Cascadia Code", monospace;
+  }
+
+  /* ---------- tables ---------- */
+  .table-scroll { overflow-x: auto; margin: 16px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: .92rem;
+  }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--bg-soft); color: var(--accent-2); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.ours { background: rgba(0,161,214,.07); }
+  .yes { color: var(--green); font-weight: 700; }
+  .no  { color: var(--muted); }
+  .star { color: var(--gold); }
+
+  footer {
+    margin-top: 56px;
+    padding: 28px 0 40px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--muted);
+    font-size: .88rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="danmaku-demo" aria-hidden="true">
+    <span style="top:12%; font-size:20px; color:#fff;        animation-duration:9s;  animation-delay:0s;">主播好可愛!!!</span>
+    <span style="top:30%; font-size:24px; color:#ffd54f;     animation-duration:12s; animation-delay:2s;">NT$150 加油!</span>
+    <span style="top:48%; font-size:18px; color:#fff;        animation-duration:8s;  animation-delay:4s;">草www</span>
+    <span style="top:66%; font-size:22px; color:#81e681;     animation-duration:11s; animation-delay:1s;">歡迎新會員~</span>
+    <span style="top:82%; font-size:19px; color:#fff;        animation-duration:10s; animation-delay:5s;">666666</span>
+  </div>
+  <div class="wrap">
+    <h1>YouTube 直播<span class="zh">彈幕</span> (Danmaku)</h1>
+    <p class="tagline">把 YouTube 直播聊天室留言,變成 Bilibili 風格的滾動彈幕直接飄過影片畫面</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/QuenHengLee/yt-live-danmaku/releases/latest">⬇ 下載最新版本</a>
+      <a class="btn ghost" href="https://github.com/QuenHengLee/yt-live-danmaku">GitHub 原始碼</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="features">
+    <h2>功能總覽</h2>
+    <ul class="features">
+      <li>🎬 <b>即時彈幕</b> — 聊天室留言即時轉為彈幕,從右往左飄過播放器,全螢幕也支援</li>
+      <li>🛤️ <b>彈道系統</b> — 自動分軌、防重疊,過載時自動丟棄避免蓋滿畫面</li>
+      <li>🙈 <b>隱藏原聊天室</b> — 開彈幕就自動收起聊天室面板,畫面不出現重複內容</li>
+      <li>⏸️ <b>暫停同步</b> — 影片暫停,彈幕跟著停;繼續播放,彈幕接著飄</li>
+      <li>💰 <b>Super Chat / 會員</b> — SC 金色顯示(含金額)、會員訊息綠色顯示</li>
+      <li>⚙️ <b>即時設定</b> — 字體大小、速度、不透明度、顯示範圍,調整立刻生效免重整</li>
+      <li>🔐 <b>極簡權限</b> — 只需要 <code>storage</code> 權限,不收集任何使用者資料</li>
+      <li>📖 <b>開源 MIT</b> — 全部程式碼公開,約 300 行,沒有黑箱</li>
+    </ul>
+  </section>
+
+  <section id="journey">
+    <h2>開發歷程:我們踩了哪些坑、怎麼修</h2>
+    <p>這個專案看起來簡單(「把留言變成飄過去的字」),但實際做下去每一步都有坑。以下是完整的踩坑與修正記錄。</p>
+
+    <div class="pitfall">
+      <h3>坑 1:聊天室根本讀不到<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>YouTube 的直播聊天室不在影片頁面裡,而是一個獨立的 <code>/live_chat</code> iframe。播放器頁面的 content script 因為瀏覽器的 frame 隔離,完全碰不到聊天室的 DOM。</dd>
+        <dt class="fix">修正</dt>
+        <dd>manifest 設 <code>all_frames: true</code> 讓同一支 content script 同時注入播放器頁與聊天室 iframe,依 <code>location.pathname</code> 分成兩種角色:聊天室端用 <code>MutationObserver</code> 監聽新留言,再用 <code>window.top.postMessage()</code> 跨 frame 傳給播放器端繪製。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 2:一進頁面彈幕瞬間灌爆<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>聊天室載入時會一次灌入數十則歷史留言,這些也會觸發 MutationObserver,結果一開頁面整個螢幕被舊留言塞滿。</dd>
+        <dt class="fix">修正</dt>
+        <dd>observer 掛上後先等 1.2 秒才開始送留言,跳過初始灌入的舊訊息;另外用留言的 DOM id 做去重(Set 快取、超過 3000 筆自動淘汰),YouTube 重繪節點也不會出現重複彈幕。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 3:彈幕互相疊在一起看不清楚<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>留言一多,彈幕隨機亂放會互相重疊,長留言跟短留言黏成一團完全無法閱讀。</dd>
+        <dt class="fix">修正</dt>
+        <dd>做了 Bilibili 式的<b>彈道(lane)系統</b>:畫面依字體大小切成數條軌道,每條軌道記錄「上一則彈幕的尾巴完全進場的時間點」,新彈幕只派給已淨空的軌道;全部軌道都擠不下且要等超過 3 秒時,直接丟棄該則留言,寧可少顯示也不要糊成一片。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 4:全螢幕就看不到彈幕、換影片彈幕層消失<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>彈幕層如果掛在頁面 body 上,一進全螢幕就被蓋掉;而且 YouTube 是 SPA,站內換頁不會重新載入,彈幕層會默默失效。</dd>
+        <dt class="fix">修正</dt>
+        <dd>overlay 直接掛進播放器容器 <code>#movie_player</code> 內部,全螢幕時自然跟著放大;同時監聽 <code>yt-navigate-finish</code> 事件加上定期檢查,換頁後自動重掛。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 5:影片暫停了,彈幕還在飄<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>想讓彈幕跟影片同步暫停,但 <code>&lt;video&gt;</code> 的 <code>play</code>/<code>pause</code> 事件<b>不會冒泡</b>,在 document 上普通監聽根本收不到。</dd>
+        <dt class="fix">修正</dt>
+        <dd>改用<b>捕獲階段</b>監聽(<code>addEventListener(..., true)</code>),media 事件雖不冒泡但捕獲照樣攔得到,再用 Web Animations API 的 <code>pause()</code>/<code>play()</code> 批次凍結、恢復所有進行中的彈幕動畫。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 6:彈幕跟聊天室同時在畫面上,內容整個重複<span class="tag v11">v1.1.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>彈幕的資料來源就是聊天室 iframe,所以聊天室必須開著;但開著就會跟彈幕顯示一模一樣的內容,畫面重複又佔空間。直覺的兩個解法都不行:按 YouTube 原生「隱藏即時通訊」會<b>直接卸載 iframe</b>,彈幕斷糧;用 <code>display: none</code> 藏起來,iframe 內部可能停止更新,一樣收不到留言。</dd>
+        <dt class="fix">修正</dt>
+        <dd>用 CSS 把聊天室面板 <code>position: fixed; left: -10000px</code> <b>移出畫面外</b>——版面上它消失了(空間釋出給相關影片),但 iframe 仍完整存活、持續收留言。預設開啟,popup 一鍵切回。這是我們跟「單純疊個彈幕層」的擴充功能最大的體驗差異之一。</dd>
+      </dl>
+    </div>
+
+    <div class="pitfall">
+      <h3>坑 7:留言洪水造成播放卡頓<span class="tag v10">v1.0.0</span></h3>
+      <dl>
+        <dt class="problem">問題</dt>
+        <dd>大型直播每秒數十則留言,如果每則都建 DOM、用 JS 逐幀改 <code>left</code> 定位,主執行緒直接被拖垮,影片跟著掉幀。</dd>
+        <dt class="fix">修正</dt>
+        <dd>三層防護:(1) 動畫全部用 Web Animations API 跑 <code>transform: translateX</code>,由合成器(compositor)處理、不佔主執行緒;(2) 同時在場彈幕上限 80 則,超過直接丟棄;(3) 彈幕飄完立即從 DOM 移除,不留殘骸。emoji 則取 <code>&lt;img&gt;</code> 的 alt 文字還原,不塞圖片節點。</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>與市面上同類擴充功能的比較</h2>
+    <p>Chrome Web Store 上已有幾款成熟的同類擴充功能,各有強項。我們不是要全面取代它們,而是走「<b>輕量、單一用途、權限最小、開源透明</b>」的路線:</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="ours">本專案<br><span class="muted">yt-live-danmaku</span></th>
+            <th><a href="https://chromewebstore.google.com/detail/danmage-flow-chat-on-yout/elhaopojedichjdgkglifmijgkeclalm">DanMage</a></th>
+            <th><a href="https://chrome.google.com/webstore/detail/flow-chat-for-youtube-liv/elfdpkmfllnhhgnicaaeacbilcallpbd">Flow Chat for YouTube Live</a></th>
+            <th><a href="https://chromewebstore.google.com/detail/youtube-livechat-flusher/kkjglcpgfpjlaloboikfcoofameeljbe">YouTube LiveChat Flusher</a></th>
+            <th><a href="https://chromewebstore.google.com/detail/noepjgennikkjanajbmhohkihcccdbpn">Danmaku Overlay for Youtube</a></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>彈幕滾動 + 樣式自訂</td>
+            <td class="ours"><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+          </tr>
+          <tr>
+            <td>自動隱藏原聊天室<br><span class="muted">(且不中斷留言讀取)</span></td>
+            <td class="ours"><span class="star">★ 內建、預設開啟</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="yes">✓</span> 有獨立模式</td>
+            <td><span class="no">—</span></td>
+          </tr>
+          <tr>
+            <td>影片暫停時彈幕同步暫停</td>
+            <td class="ours"><span class="yes">✓</span></td>
+            <td><span class="no">未標示</span></td>
+            <td><span class="no">未標示</span></td>
+            <td><span class="yes">✓</span> 右鍵暫停</td>
+            <td><span class="no">未標示</span></td>
+          </tr>
+          <tr>
+            <td>Super Chat / 會員訊息上色</td>
+            <td class="ours"><span class="yes">✓</span></td>
+            <td><span class="no">未標示</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="no">未標示</span></td>
+          </tr>
+          <tr>
+            <td>多平台支援<br><span class="muted">(Twitch、Kick…)</span></td>
+            <td class="ours"><span class="no">— 專注 YouTube</span></td>
+            <td><span class="yes">✓</span> YT/Twitch/Kick/CR</td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+          </tr>
+          <tr>
+            <td>留言翻譯、PiP 等進階功能</td>
+            <td class="ours"><span class="no">— 刻意不做</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="no">—</span></td>
+          </tr>
+          <tr>
+            <td>所需權限</td>
+            <td class="ours"><span class="star">★ 僅 storage</span></td>
+            <td><span class="no">依商店頁</span></td>
+            <td><span class="no">依商店頁</span></td>
+            <td><span class="no">依商店頁</span></td>
+            <td><span class="no">依商店頁</span></td>
+          </tr>
+          <tr>
+            <td>程式碼規模</td>
+            <td class="ours"><span class="star">★ 約 300 行,可 10 分鐘讀完</span></td>
+            <td colspan="4" style="text-align:center;"><span class="no">功能較多、程式碼相對龐大</span></td>
+          </tr>
+          <tr>
+            <td>繁體中文介面</td>
+            <td class="ours"><span class="yes">✓ 原生</span></td>
+            <td><span class="no">視版本而定</span></td>
+            <td><span class="no">視版本而定</span></td>
+            <td><span class="no">視版本而定</span></td>
+            <td><span class="no">視版本而定</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">※ 他牌功能資訊整理自各擴充功能的 Chrome Web Store 商店頁描述(2026 年 8 月查閱),實際功能以各擴充功能最新版本為準。「未標示」代表商店頁未提及,不代表沒有。</p>
+
+    <h3>我們刻意「不做」的事</h3>
+    <p>同類擴充功能功能越堆越多(翻譯、多平台、頭像、NG 名單⋯⋯),對應的是更多權限、更大的程式碼、更難審計。我們選擇相反的方向:<b>只做好「聊天室 → 彈幕」這一件事</b>,權限只要 <code>storage</code>、不碰任何使用者資料、全部程式碼公開在 GitHub 上,你可以在十分鐘內讀完並確認它沒有做任何多餘的事。</p>
+
+    <h3>我們額外解決、而多數同類產品沒處理的體驗問題</h3>
+    <ul>
+      <li><b>內容重複問題</b>:開彈幕自動把原聊天室收掉(移出畫面而非卸載,留言照收),畫面上同一句話不會出現兩次——這是大多數「純疊彈幕層」的擴充功能沒有處理的。</li>
+      <li><b>彈幕可讀性</b>:彈道防重疊 + 過載丟棄,尖峰時段寧可少顯示也不讓畫面糊成一片。</li>
+      <li><b>播放效能</b>:動畫全走合成器(<code>transform</code> + WAAPI),留言洪水不拖累影片本身的播放流暢度。</li>
+    </ul>
+  </section>
+
+  <section id="install">
+    <h2>安裝方式</h2>
+    <ol>
+      <li>到 <a href="https://github.com/QuenHengLee/yt-live-danmaku/releases/latest">Releases</a> 下載最新的 zip 並解壓縮</li>
+      <li>開啟 Chrome,前往 <code>chrome://extensions</code></li>
+      <li>開啟右上角「開發人員模式」</li>
+      <li>點「載入未封裝項目」,選擇解壓縮後的資料夾</li>
+      <li>打開任一有聊天室的 YouTube 直播,彈幕就會開始飄 🎉</li>
+    </ol>
+    <p class="muted">Chrome Web Store 上架準備中。</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="https://github.com/QuenHengLee/yt-live-danmaku">GitHub</a> ·
+      <a href="https://github.com/QuenHengLee/yt-live-danmaku/releases">Releases</a> ·
+      MIT License
+    </p>
+    <p>YouTube 是 Google LLC 的商標。本專案為獨立開發,與 YouTube / Google / Bilibili 均無關聯。</p>
+  </div>
+</footer>
+
+</body>
+</html>
