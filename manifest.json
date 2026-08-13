@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube 直播彈幕 (Danmaku)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "把 YouTube 直播聊天室留言變成 Bilibili 風格的滾動彈幕",
   "permissions": ["storage"],
   "icons": {
