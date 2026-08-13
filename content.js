@@ -9,7 +9,8 @@
     speed: 200,     // px / second
     opacity: 85,    // %
     area: 75,       // % of player height used for danmaku
-    showAuthor: false
+    showAuthor: false,
+    hideChat: true  // 隱藏原聊天室面板(iframe 仍在背景讀留言)
   };
 
   const settings = { ...DEFAULTS };
@@ -145,6 +146,14 @@
       lanes.length = 0;
     }
 
+    // 不用 display:none / YouTube 原生「隱藏即時通訊」——那會讓 iframe 停止運作,
+    // 改用 CSS 移到畫面外,聊天室在背景繼續收留言
+    function applyChatVisibility() {
+      const chat = document.querySelector('ytd-live-chat-frame#chat');
+      if (!chat) return;
+      chat.classList.toggle('ytdm-chat-hidden', settings.enabled && settings.hideChat);
+    }
+
     function fire(msg) {
       if (!settings.enabled) return;
       if (!ensureOverlay()) return;
@@ -231,12 +240,18 @@
     window.addEventListener('yt-navigate-finish', () => {
       clearAll();
       ensureOverlay();
+      applyChatVisibility();
     });
     setInterval(() => {
       if (document.querySelector('#movie_player')) ensureOverlay();
+      applyChatVisibility();
     }, 2000);
 
-    watchSettings(applyOverlayStyle);
+    applyChatVisibility();
+    watchSettings(() => {
+      applyOverlayStyle();
+      applyChatVisibility();
+    });
   }
 
   /* ================= 進入點 ================= */

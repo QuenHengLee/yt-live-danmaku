@@ -33,3 +33,13 @@
 .ytdm-member {
   color: #81e681; /* 會員訊息綠色 */
 }
+
+/* 隱藏原聊天室:移到畫面外而非 display:none,
+   iframe 保持運作才能持續讀取留言 */
+ytd-live-chat-frame#chat.ytdm-chat-hidden {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

@@ -4,7 +4,8 @@ const DEFAULTS = {
   speed: 200,
   opacity: 85,
   area: 75,
-  showAuthor: false
+  showAuthor: false,
+  hideChat: true
 };
 
 const UNITS = {

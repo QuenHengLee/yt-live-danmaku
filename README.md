@@ -12,7 +12,8 @@ A Chrome extension that turns YouTube live chat messages into Bilibili-style scr
 - 💰 Super Chat 金色顯示(含金額)、會員訊息綠色顯示
 - 😀 支援 emoji(自動還原成文字)
 - 🔁 支援直播回放的聊天重播(live chat replay)
-- ⚙️ 設定面板即時生效:開關、顯示留言者名稱、字體大小、速度、不透明度、顯示範圍
+- 🙈 自動隱藏原聊天室面板,避免畫面出現重複內容(iframe 仍在背景讀取留言,可於設定關閉)
+- ⚙️ 設定面板即時生效:開關、顯示留言者名稱、隱藏原聊天室、字體大小、速度、不透明度、顯示範圍
 
 ## 安裝
 
